@@ -163,7 +163,7 @@ export default function App() {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }} className="relative">
             <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 blur-2xl" />
             <img
-              src="/app-demo-1.png"
+              src="/app-demo-3.png"
               alt="stenoAI app showing meeting transcription and AI summary"
               className="relative w-full rounded-2xl border border-white/10 shadow-2xl"
             />
