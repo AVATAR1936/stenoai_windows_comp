@@ -113,6 +113,22 @@ This app ships as a signed DMG to real users. Before considering any change comp
 - Keep commit messages concise and focused on what changed
 - Use conventional commit format when appropriate (feat:, fix:, docs:, etc.)
 
+## Release Process
+Releases are automated via `.github/workflows/build-release.yml`. Never create releases manually.
+
+1. Bump version in `app/package.json` (on the branch, before merging)
+2. After PR is merged to `main`, create an **annotated tag** on main with the release notes in the tag message:
+   ```
+   git tag -a v0.2.5 -m "Release notes here..."
+   git push origin v0.2.5
+   ```
+3. The tag push triggers the workflow which:
+   - Builds signed + notarized DMGs for both arm64 and x64
+   - Creates a GitHub Release with the tag message as the "What's New" section
+   - Uploads both DMGs as release assets
+4. The tag message becomes the release notes body — write it as markdown with a summary of changes
+5. Do NOT build DMGs locally for releases, do NOT use `gh release create` manually
+
 ## README "What's New" Section
 The README has a "What's New" table that should be updated every ~2 weeks. When asked to update it (or when shipping a notable feature):
 1. Check recently merged PRs: `gh pr list --state merged --limit 10`
