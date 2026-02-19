@@ -81,7 +81,7 @@ Have questions or suggestions? [Join our Discord](https://discord.gg/DZ6vcQnxxu)
 
 Download the latest release for your Mac:
 
-- [Apple Silicon (M1/M2/M3/M4)](https://github.com/ruzin/stenoai/releases/latest/download/stenoAI-macos-arm64.dmg)
+- [Apple Silicon (M1-M5)](https://github.com/ruzin/stenoai/releases/latest/download/stenoAI-macos-arm64.dmg)
 - [Intel Macs](https://github.com/ruzin/stenoai/releases/latest/download/stenoAI-macos-x64.dmg) Performance on Intel Macs is limited due to lack of dedicated AI inference capabilities on these older chips.
 
 ### Installing on macOS
@@ -97,7 +97,7 @@ Download the latest release for your Mac:
    - Or run in Terminal: `xattr -cr /Applications/StenoAI.app`
 5. **The app will work normally on subsequent launches**
 
-You can run it locally as well (see below) if you dont want to install a dmg.
+You can run it locally as well (see below) if you don't want to install a DMG.
 
 ## Local Development/Use Locally
 
@@ -135,46 +135,6 @@ Note: Ollama and ffmpeg are bundled - no system installation needed. The setup w
 cd app
 npm run build
 ```
-
-## Release Process
-
-### Simple Release Commands
-```bash
-cd app
-
-# Patch release (bug fixes): 0.0.5 → 0.0.6
-npm version patch
-git add package.json package-lock.json
-git commit -m "Version bump to $(node -p "require('./package.json').version")"
-git push
-git tag v$(node -p "require('./package.json').version")
-git push origin v$(node -p "require('./package.json').version")
-
-# Minor release (new features): 0.0.6 → 0.1.0
-npm version minor
-git add package.json package-lock.json
-git commit -m "Version bump to $(node -p "require('./package.json').version")"
-git push
-git tag v$(node -p "require('./package.json').version")
-git push origin v$(node -p "require('./package.json').version")
-
-# Major release (breaking changes): 0.0.6 → 1.0.0
-npm version major
-git add package.json package-lock.json
-git commit -m "Version bump to $(node -p "require('./package.json').version")"
-git push
-git tag v$(node -p "require('./package.json').version")
-git push origin v$(node -p "require('./package.json').version")
-```
-
-**What happens:**
-1. `npm version` updates package.json and package-lock.json locally
-2. Manual commit ensures version changes are saved to git
-3. `git push` sends the version commit to GitHub
-4. `git tag` creates the version tag locally
-5. `git push origin tag` triggers GitHub Actions workflow
-6. Workflow automatically builds DMGs for Intel & Apple Silicon
-7. Creates GitHub release with downloadable assets
 
 ## Project Structure
 
