@@ -43,10 +43,12 @@
 
 - **Local transcription** using whisper.cpp
 - **AI summarization** with Ollama models
-- **System audio capture** - Record mic + system audio simultaneously for virtual meetings with headphones
-- **Ask Steno** - Query your meetings with natural language questions
-- **Multiple AI models** - Choose from 4 models optimized for different use cases
 - **Privacy-first** - 100% local processing, your data never leaves your device
+- **Multiple AI models** - Choose from 4 models optimized for different use cases
+- **Ask Steno** - Query your meetings with natural language questions
+- **Multi-language support** - Transcribe and summarize in 10 languages
+- **Remote Ollama server** - Run AI models on another machine on your network
+- **System audio capture** - Record mic + system audio simultaneously for virtual meetings with headphones
 - **macOS desktop app** with intuitive interface
 
 Have questions or suggestions? [Join our Discord](https://discord.gg/DZ6vcQnxxu) to chat with the community.
