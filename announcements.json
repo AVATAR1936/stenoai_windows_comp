@@ -1,16 +1,16 @@
 {
   "announcements": [
     {
-      "id": "2026-01-welcome",
-      "type": "info",
-      "title": "Welcome to StenoAI",
-      "message": "Privacy first AI meeting intelligence powered by local models. Star us on GitHub!",
-      "action_url": "https://github.com/ruzin/stenoai",
-      "action_label": "GitHub",
+      "id": "2026-02-v027-release",
+      "type": "release",
+      "title": "New v0.2.7 release coming today",
+      "message": "Multi-language support, remote Ollama server & Apple M5 support",
+      "action_url": "https://github.com/ruzin/stenoai/releases",
+      "action_label": "View Release",
       "min_version": null,
       "max_version": null,
-      "created_at": "2026-01-27T00:00:00Z",
-      "expires_at": "2026-03-01T00:00:00Z"
+      "created_at": "2026-02-22T00:00:00Z",
+      "expires_at": "2026-03-08T00:00:00Z"
     }
   ]
 }
