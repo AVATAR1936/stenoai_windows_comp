@@ -3,7 +3,7 @@
     {
       "id": "2026-02-v027-release",
       "type": "release",
-      "title": "New v0.2.7 release coming today",
+      "title": "New v0.2.7 release coming today:",
       "message": "Multi-language support, remote Ollama server & Apple M5 support",
       "action_url": "https://github.com/ruzin/stenoai",
       "action_label": "GitHub",
