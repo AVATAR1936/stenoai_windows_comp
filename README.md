@@ -67,21 +67,17 @@ Have questions or suggestions? [Join our Discord](https://discord.gg/DZ6vcQnxxu)
 
 #### YouTube Video Summary Challenge (11m 36s): [High-Speed Rail Systems Around the World](https://www.youtube.com/watch?v=9wJCltuawSs)
 
-**Scoring Criteria**
-- **Overall (10):** Holistic quality score
-- **Content Accuracy (10):** Numerical and factual correctness
-- **Completeness (10):** Coverage of major video points
-- **No Hallucination (10):** No fabricated participants, action items, or invented details
+<sub>Scored on: overall quality, factual accuracy, completeness, and hallucination (each out of 10).</sub>
 
-| Rank | Model              | Overall (10) | Content Accuracy (10) | Completeness (10) | No Hallucination (10) | Notes |
-|------|-------------------|--------------|------------------------|-------------------|-----------------------|-------|
-| 1    | Claude Sonnet 4.6 | 9.8          | 9.8                    | 9.5               | 10.0                  | Most precise; strongest quantitative retention; perfect framing |
-| 2    | Claude Haiku      | 9.5          | 9.5                    | 9.0               | 10.0                  | Very strong; slightly less detailed than Sonnet |
-| 3    | DeepSeek R1:8B    | 8.8          | 9.0                    | 8.0               | 8.5                   | Broad coverage; fewer numerical details |
-| 4    | Qwen:8B           | 8.5          | 9.0                    | 7.5               | 8.5                   | Accurate but more compressed |
-| 5    | GPT-4.1           | 8.3          | 9.0                    | 8.0               | 6.5                   | Accurate but meeting framing invented |
-| 6    | GPT-4o Mini       | 8.0          | 8.5                    | 7.5               | 6.0                   | Invented meeting framing and participants |
-| 7    | Gemma 4B          | 7.0          | 8.5                    | 7.0               | 3.5                   | Fabricated participants and action items |
+| # | Provider | Model | Overall | Accuracy | Complete | No Halluc. | Notes |
+|:-:|----------|-------|:-------:|:--------:|:--------:|:----------:|-------|
+| 1 | Anthropic | Claude Sonnet 4.6 | 9.8 | 9.8 | 9.5 | 10.0 | <sub>Most precise; perfect framing</sub> |
+| 2 | Anthropic | Claude Haiku | 9.5 | 9.5 | 9.0 | 10.0 | <sub>Very strong; slightly less detailed</sub> |
+| 3 | **StenoAI** | **DeepSeek R1:8B** | 8.8 | 9.0 | 8.0 | 8.5 | <sub>Broad coverage; fewer numerical details</sub> |
+| 4 | **StenoAI** | **Qwen 3:8B** | 8.5 | 9.0 | 7.5 | 8.5 | <sub>Accurate but more compressed</sub> |
+| 5 | OpenAI | GPT-4.1 | 8.3 | 9.0 | 8.0 | 6.5 | <sub>Accurate but invented meeting framing</sub> |
+| 6 | OpenAI | GPT-4o Mini | 8.0 | 8.5 | 7.5 | 6.0 | <sub>Invented framing and participants</sub> |
+| 7 | **StenoAI** | **Gemma 3:4B** | 7.0 | 8.5 | 7.0 | 3.5 | <sub>Fabricated participants and action items</sub> |
 
 ## Future Roadmap
 
