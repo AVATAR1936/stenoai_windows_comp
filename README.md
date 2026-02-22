@@ -63,7 +63,7 @@ Have questions or suggestions? [Join our Discord](https://discord.gg/DZ6vcQnxxu)
 - `qwen3:8b` (4.7GB): Excellent at structured output and action items
 - `deepseek-r1:8b` (4.7GB): Strong reasoning and analysis capabilities
 
-### David vs Goliath: StenoAI Local Models Closing the Gap with Claude Sonnet 4.6
+### StenoAI Local Model Performance vs Claude Sonnet 4.6: Closing the Gap! 🚀
 
 #### YouTube Video Summary Challenge (11m 36s): [High-Speed Rail Systems Around the World](https://www.youtube.com/watch?v=9wJCltuawSs)
 
