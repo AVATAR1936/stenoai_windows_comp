@@ -16,7 +16,7 @@ from typing import Optional, Tuple
 logger = logging.getLogger(__name__)
 
 # Ollama download URL for macOS
-OLLAMA_DOWNLOAD_URL = "https://github.com/ollama/ollama/releases/download/v0.15.4/ollama-darwin.tgz"
+OLLAMA_DOWNLOAD_URL = "https://github.com/ollama/ollama/releases/download/v0.16.3/ollama-darwin.tgz"
 
 
 def get_bundled_ollama_dir() -> Optional[Path]:
@@ -140,6 +140,7 @@ def is_ollama_running() -> bool:
         return response.status_code == 200
     except Exception:
         return False
+
 
 
 def start_ollama_server(wait: bool = True, timeout: int = 30) -> bool:

@@ -501,19 +501,19 @@ ipcMain.handle('request-microphone-permission', async () => {
 // Debug functionality handled by side panel now
 
 // Backend communication - always uses bundled stenoai executable
-function runPythonScript(script, args = [], silent = false) {
+function runPythonScript(script, args = [], silent = false, extraEnv = {}) {
   return new Promise((resolve, reject) => {
     const backendPath = getBackendPath();
-    const command = `${backendPath} ${args.join(' ')}`;
 
     // Log the command being executed (unless silent)
-    console.log('Running:', command);
+    console.log('Running:', `${backendPath} ${args.join(' ')}`);
     if (!silent) {
       sendDebugLog(`$ stenoai ${args.join(' ')}`);
     }
 
     const process = spawn(backendPath, args, {
-      cwd: getBackendCwd()
+      cwd: getBackendCwd(),
+      env: Object.keys(extraEnv).length > 0 ? { ...require('process').env, ...extraEnv } : undefined
     });
 
     let stdout = '';
@@ -614,7 +614,9 @@ ipcMain.handle('get-status', async () => {
 
 ipcMain.handle('process-recording', async (event, audioFile, sessionName) => {
   try {
-    const result = await runPythonScript('simple_recorder.py', ['process', audioFile, '--name', sessionName]);
+    const cloudKey = loadCloudApiKey();
+    const env = cloudKey ? { STENOAI_CLOUD_API_KEY: cloudKey } : {};
+    const result = await runPythonScript('simple_recorder.py', ['process', audioFile, '--name', sessionName], false, env);
     trackEvent('transcription_completed', { success: true });
     trackEvent('summarization_completed', { success: true });
     return { success: true, result: result };
@@ -671,7 +673,9 @@ ipcMain.handle('reprocess-meeting', async (event, summaryFile) => {
     sendDebugLog(`🔄 Reprocessing meeting: ${summaryFile}`);
     sendDebugLog(`$ python simple_recorder.py reprocess "${summaryFile}"`);
 
-    const result = await runPythonScript('simple_recorder.py', ['reprocess', summaryFile]);
+    const cloudKey = loadCloudApiKey();
+    const env = cloudKey ? { STENOAI_CLOUD_API_KEY: cloudKey } : {};
+    const result = await runPythonScript('simple_recorder.py', ['reprocess', summaryFile], false, env);
 
     sendDebugLog('✅ Meeting reprocessed successfully');
     return { success: true, message: result };
@@ -685,8 +689,10 @@ ipcMain.handle('query-transcript', async (event, summaryFile, question) => {
   try {
     sendDebugLog(`🤖 Querying transcript: ${question.substring(0, 50)}...`);
 
-    // Run the query command
-    const result = await runPythonScript('simple_recorder.py', ['query', summaryFile, '-q', question]);
+    // Run the query command (pass cloud key for cloud provider)
+    const cloudKey = loadCloudApiKey();
+    const env = cloudKey ? { STENOAI_CLOUD_API_KEY: cloudKey } : {};
+    const result = await runPythonScript('simple_recorder.py', ['query', summaryFile, '-q', question], false, env);
 
     // Parse the JSON response
     try {
@@ -893,7 +899,9 @@ async function processNextInQueue() {
   console.log(`🔄 Processing queued job: ${currentProcessingJob.sessionName}`);
   
   try {
-    const result = await runPythonScript('simple_recorder.py', ['process', currentProcessingJob.audioFile, '--name', currentProcessingJob.sessionName]);
+    const queueCloudKey = loadCloudApiKey();
+    const queueEnv = queueCloudKey ? { STENOAI_CLOUD_API_KEY: queueCloudKey } : {};
+    const result = await runPythonScript('simple_recorder.py', ['process', currentProcessingJob.audioFile, '--name', currentProcessingJob.sessionName], false, queueEnv);
     console.log(`✅ Completed processing: ${currentProcessingJob.sessionName}`);
     trackEvent('transcription_completed', { success: true });
     trackEvent('summarization_completed', { success: true });
@@ -963,8 +971,14 @@ ipcMain.handle('start-recording-ui', async (_, sessionName) => {
     const actualSessionName = sessionName || 'Meeting';
 
     // Start background recording with 2-hour limit
+    // Pass cloud API key via env var for cloud summarization
+    const recordEnv = {};
+    const cloudKey = loadCloudApiKey();
+    if (cloudKey) recordEnv.STENOAI_CLOUD_API_KEY = cloudKey;
+
     currentRecordingProcess = spawn(getBackendPath(), ['record', '7200', actualSessionName], {
-      cwd: getBackendCwd()
+      cwd: getBackendCwd(),
+      env: Object.keys(recordEnv).length > 0 ? { ...require('process').env, ...recordEnv } : undefined
     });
 
     let hasStarted = false;
@@ -1515,6 +1529,18 @@ function sendDebugLog(message) {
 
 ipcMain.handle('setup-ollama-and-model', async () => {
   try {
+    // Check AI provider -- skip local Ollama setup for remote/cloud
+    try {
+      const providerResult = await runPythonScript('simple_recorder.py', ['get-ai-provider'], true);
+      const providerConfig = JSON.parse(providerResult.trim());
+      if (providerConfig.ai_provider === 'remote' || providerConfig.ai_provider === 'cloud') {
+        sendDebugLog(`AI provider is "${providerConfig.ai_provider}" -- skipping local Ollama setup`);
+        return { success: true, skipped: true };
+      }
+    } catch (e) {
+      sendDebugLog(`Could not read AI provider, proceeding with local setup: ${e.message}`);
+    }
+
     sendDebugLog('Locating bundled Ollama...');
     const finalOllamaPath = await findOllamaExecutable();
     if (!finalOllamaPath) {
@@ -2188,6 +2214,150 @@ ipcMain.handle('set-language', async (event, languageCode) => {
     return { success: true, language: languageCode };
   } catch (error) {
     sendDebugLog(`Error setting language: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// AI Provider IPC handlers
+
+function getCloudKeyPath() {
+  return path.join(os.homedir(), 'Library', 'Application Support', 'stenoai', '.cloud-api-key');
+}
+
+function saveCloudApiKey(key) {
+  try {
+    const keyDir = path.dirname(getCloudKeyPath());
+    if (!fs.existsSync(keyDir)) {
+      fs.mkdirSync(keyDir, { recursive: true });
+    }
+    const encrypted = safeStorage.encryptString(key);
+    fs.writeFileSync(getCloudKeyPath(), encrypted);
+    return true;
+  } catch (error) {
+    console.error('Failed to save cloud API key:', error.message);
+    return false;
+  }
+}
+
+function loadCloudApiKey() {
+  try {
+    const keyPath = getCloudKeyPath();
+    if (!fs.existsSync(keyPath)) return null;
+    const encrypted = fs.readFileSync(keyPath);
+    return safeStorage.decryptString(encrypted);
+  } catch (error) {
+    console.error('Failed to load cloud API key:', error.message);
+    return null;
+  }
+}
+
+function hasCloudApiKey() {
+  return fs.existsSync(getCloudKeyPath());
+}
+
+ipcMain.handle('get-ai-provider', async () => {
+  try {
+    const result = await runPythonScript('simple_recorder.py', ['get-ai-provider'], true);
+    const jsonData = JSON.parse(result.trim());
+    // Override cloud_api_key_set with safeStorage check
+    jsonData.cloud_api_key_set = hasCloudApiKey();
+    return { success: true, ...jsonData };
+  } catch (error) {
+    sendDebugLog(`Error getting AI provider: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('set-ai-provider', async (event, provider) => {
+  try {
+    sendDebugLog(`Setting AI provider to: ${provider}`);
+    const result = await runPythonScript('simple_recorder.py', ['set-ai-provider', provider]);
+    const jsonMatch = result.match(/\{.*\}/s);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return { success: true, ai_provider: provider };
+  } catch (error) {
+    sendDebugLog(`Error setting AI provider: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('set-remote-ollama-url', async (event, url) => {
+  try {
+    const result = await runPythonScript('simple_recorder.py', ['set-remote-ollama-url', url]);
+    const jsonMatch = result.match(/\{.*\}/s);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('set-cloud-api-url', async (event, url) => {
+  try {
+    const result = await runPythonScript('simple_recorder.py', ['set-cloud-api-url', url]);
+    const jsonMatch = result.match(/\{.*\}/s);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('set-cloud-api-key', async (event, key) => {
+  try {
+    const saved = saveCloudApiKey(key);
+    return { success: saved, cloud_api_key_set: saved };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('set-cloud-provider', async (event, provider) => {
+  try {
+    const result = await runPythonScript('simple_recorder.py', ['set-cloud-provider', provider]);
+    const jsonMatch = result.match(/\{.*\}/s);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('set-cloud-model', async (event, model) => {
+  try {
+    const result = await runPythonScript('simple_recorder.py', ['set-cloud-model', model]);
+    const jsonMatch = result.match(/\{.*\}/s);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('test-remote-ollama', async (event, url) => {
+  try {
+    sendDebugLog(`Testing remote Ollama at: ${url}`);
+    const result = await runPythonScript('simple_recorder.py', ['test-remote-ollama', url]);
+    const jsonMatch = result.match(/\{.*\}/s);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return { success: false, error: 'No response' };
+  } catch (error) {
+    sendDebugLog(`Remote Ollama test failed: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('test-cloud-api', async () => {
+  try {
+    sendDebugLog('Testing cloud API connection...');
+    const apiKey = loadCloudApiKey();
+    const env = apiKey ? { STENOAI_CLOUD_API_KEY: apiKey } : {};
+    const result = await runPythonScript('simple_recorder.py', ['test-cloud-api'], false, env);
+    const jsonMatch = result.match(/\{.*\}/s);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return { success: false, error: 'No response' };
+  } catch (error) {
+    sendDebugLog(`Cloud API test failed: ${error.message}`);
     return { success: false, error: error.message };
   }
 });
