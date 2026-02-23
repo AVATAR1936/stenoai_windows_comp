@@ -498,6 +498,16 @@ ipcMain.handle('check-microphone-permission', async () => {
 ipcMain.handle('request-microphone-permission', async () => {
   try {
     console.log('Requesting microphone permission...');
+
+    // askForMediaAccess is only available on macOS.
+    // On Windows/Linux, access is controlled by OS/device settings.
+    if (process.platform !== 'darwin' || typeof systemPreferences.askForMediaAccess !== 'function') {
+      const status = systemPreferences.getMediaAccessStatus('microphone');
+      const granted = status === 'granted';
+      console.log('Microphone permission prompt is not supported on this OS. Current status:', status);
+      return { success: true, granted, status, skippedRequest: true };
+    }
+
     const granted = await systemPreferences.askForMediaAccess('microphone');
     console.log('Microphone permission granted:', granted);
     return { success: true, granted };
@@ -1550,13 +1560,13 @@ ipcMain.handle('setup-ollama-and-model', async () => {
       sendDebugLog(`Could not read AI provider, proceeding with local setup: ${e.message}`);
     }
 
-    sendDebugLog('Locating bundled Ollama...');
+    sendDebugLog('Locating Ollama executable...');
     const finalOllamaPath = await findOllamaExecutable();
     if (!finalOllamaPath) {
-      sendDebugLog('Error: Bundled Ollama not found');
-      return { success: false, error: 'Bundled Ollama not found. Please reinstall StenoAI.' };
+      sendDebugLog('Error: Ollama executable not found');
+      return { success: false, error: 'Ollama not found. Install Ollama or reinstall StenoAI.' };
     }
-    sendDebugLog(`Found bundled Ollama at: ${finalOllamaPath}`);
+    sendDebugLog(`Found Ollama at: ${finalOllamaPath}`);
 
     // Start Ollama service with proper env vars for bundled dylibs
     sendDebugLog('Starting Ollama service...');
@@ -2531,15 +2541,25 @@ function getOllamaEnv() {
   return env;
 }
 
-// Helper function to find Ollama executable (bundled only)
+function commandExists(cmd) {
+  return new Promise((resolve) => {
+    const checker = process.platform === 'win32' ? 'where' : 'which';
+    const child = spawn(checker, [cmd], { stdio: 'ignore' });
+    child.on('close', (code) => resolve(code === 0));
+    child.on('error', () => resolve(false));
+  });
+}
+
+// Helper function to find Ollama executable (bundled first, then system)
 async function findOllamaExecutable() {
+  const ollamaBinaryName = process.platform === 'win32' ? 'ollama.exe' : 'ollama';
   let bundledOllamaPath;
   if (app.isPackaged) {
     // Production: bundled inside PyInstaller _internal directory
-    bundledOllamaPath = path.join(process.resourcesPath, 'stenoai', '_internal', 'ollama', 'ollama');
+    bundledOllamaPath = path.join(process.resourcesPath, 'stenoai', '_internal', 'ollama', ollamaBinaryName);
   } else {
     // Development: in project bin/ directory
-    bundledOllamaPath = path.join(__dirname, '..', 'bin', 'ollama');
+    bundledOllamaPath = path.join(__dirname, '..', 'bin', ollamaBinaryName);
   }
 
   if (fs.existsSync(bundledOllamaPath)) {
@@ -2547,7 +2567,24 @@ async function findOllamaExecutable() {
     return bundledOllamaPath;
   }
 
+  // Fallback to system installation in PATH
+  if (await commandExists('ollama')) {
+    console.log('Using system Ollama from PATH');
+    return 'ollama';
+  }
+
+  // Common Windows installation fallback when PATH wasn't refreshed yet
+  if (process.platform === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+    const windowsInstallPath = path.join(localAppData, 'Programs', 'Ollama', 'ollama.exe');
+    if (fs.existsSync(windowsInstallPath)) {
+      console.log(`Using Ollama from default Windows install path: ${windowsInstallPath}`);
+      return windowsInstallPath;
+    }
+  }
+
   console.error(`Bundled Ollama not found at: ${bundledOllamaPath}`);
+  console.error('System Ollama also not found in PATH');
   return null;
 }
 
