@@ -15,10 +15,12 @@ Usage (called by Electron):
     python simple_recorder.py status
 """
 
+import builtins
 import click
 import asyncio
 import logging
 import json
+import os
 import sys
 import time
 from datetime import datetime
@@ -44,6 +46,41 @@ except ImportError:
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+def configure_console_output() -> None:
+    """Avoid UnicodeEncodeError on Windows code pages when printing emoji."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(errors="replace")
+            except Exception:
+                # Best-effort only; fall back to default stream configuration.
+                pass
+
+
+def install_safe_print() -> None:
+    """Install a print wrapper that degrades gracefully on legacy encodings."""
+    original_print = builtins.print
+
+    def safe_print(*args, **kwargs):
+        try:
+            original_print(*args, **kwargs)
+        except UnicodeEncodeError:
+            sep = kwargs.get("sep", " ")
+            end = kwargs.get("end", "\n")
+            stream = kwargs.get("file", sys.stdout)
+            encoding = getattr(stream, "encoding", None) or "utf-8"
+            message = sep.join(str(arg) for arg in args)
+            safe_message = message.encode(encoding, errors="replace").decode(encoding, errors="replace")
+            original_print(safe_message, end=end, file=stream, flush=kwargs.get("flush", False))
+
+    builtins.print = safe_print
+
+
+configure_console_output()
+install_safe_print()
 
 def get_platform_app_data_dir() -> Path:
     """Return the default StenoAI data directory for the current platform."""
