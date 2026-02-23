@@ -69,11 +69,16 @@ def get_ollama_binary() -> Optional[Path]:
             return ollama_path
 
     # Fall back to system Ollama
+    local_app_data = os.environ.get('LOCALAPPDATA', '')
+    windows_default = (Path(local_app_data) / 'Programs' / 'Ollama' / 'ollama.exe') if local_app_data else None
+
     system_paths = [
         '/opt/homebrew/bin/ollama',  # Homebrew on Apple Silicon
         '/usr/local/bin/ollama',     # Homebrew on Intel
         '/usr/bin/ollama',           # System installation
     ]
+    if windows_default:
+        system_paths.append(str(windows_default))
 
     # Check PATH first
     which_path = shutil.which('ollama')
@@ -153,7 +158,7 @@ def start_ollama_server(wait: bool = True, timeout: int = 30) -> bool:
         True if server is running, False if failed to start
     """
     if is_ollama_running():
-        logger.info("Ollama server is already running")
+        logger.info("Ollama server is already running (system/bundled)")
         return True
 
     ollama_binary = get_ollama_binary()
