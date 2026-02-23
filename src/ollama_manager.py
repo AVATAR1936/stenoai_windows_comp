@@ -7,6 +7,7 @@ eliminating the need for users to install Ollama separately.
 
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -75,15 +76,12 @@ def get_ollama_binary() -> Optional[Path]:
     ]
 
     # Check PATH first
-    try:
-        result = subprocess.run(['which', 'ollama'], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            path = Path(result.stdout.strip())
-            if path.exists():
-                logger.info(f"Using system Ollama from PATH: {path}")
-                return path
-    except Exception:
-        pass
+    which_path = shutil.which('ollama')
+    if which_path:
+        path = Path(which_path)
+        if path.exists():
+            logger.info(f"Using system Ollama from PATH: {path}")
+            return path
 
     # Check common locations
     for path_str in system_paths:
@@ -114,15 +112,15 @@ def get_ollama_env() -> dict:
 
         # macOS uses DYLD_LIBRARY_PATH
         existing = env.get('DYLD_LIBRARY_PATH', '')
-        if existing:
-            env['DYLD_LIBRARY_PATH'] = f"{ollama_dir_str}:{existing}"
-        else:
-            env['DYLD_LIBRARY_PATH'] = ollama_dir_str
+        if sys.platform == 'darwin':
+            if existing:
+                env['DYLD_LIBRARY_PATH'] = f"{ollama_dir_str}:{existing}"
+            else:
+                env['DYLD_LIBRARY_PATH'] = ollama_dir_str
 
-        # Also set for Metal library
-        env['MLX_METAL_PATH'] = str(bundled_dir / 'mlx.metallib')
-
-        logger.debug(f"Set DYLD_LIBRARY_PATH: {env['DYLD_LIBRARY_PATH']}")
+            # Also set for Metal library
+            env['MLX_METAL_PATH'] = str(bundled_dir / 'mlx.metallib')
+            logger.debug(f"Set DYLD_LIBRARY_PATH: {env['DYLD_LIBRARY_PATH']}")
 
     return env
 

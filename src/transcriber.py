@@ -101,6 +101,7 @@ class WhisperTranscriber:
             '/opt/homebrew/bin/ffmpeg',  # Homebrew on Apple Silicon
             '/usr/local/bin/ffmpeg',     # Homebrew on Intel
             '/usr/bin/ffmpeg',           # System installation
+            r'C:\\ffmpeg\\bin\\ffmpeg.exe',  # Common Windows location
         ])
 
         # Check if ffmpeg is already in PATH
@@ -126,7 +127,7 @@ class WhisperTranscriber:
             ffmpeg_dir = os.path.dirname(ffmpeg_found_path)
             current_path = os.environ.get('PATH', '')
             if ffmpeg_dir not in current_path:
-                os.environ['PATH'] = f"{ffmpeg_dir}:{current_path}"
+                os.environ['PATH'] = f"{ffmpeg_dir}{os.pathsep}{current_path}"
                 logger.info(f"Added {ffmpeg_dir} to PATH")
         else:
             logger.warning("ffmpeg not found - transcription may fail")

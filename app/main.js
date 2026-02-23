@@ -61,6 +61,15 @@ const OUTLOOK_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/
 /**
  * Return a privacy-safe duration bucket string.
  */
+
+function getAppDataDir() {
+  return app.getPath('userData');
+}
+
+function getPythonCommand() {
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
 function durationBucket(seconds) {
   if (seconds < 60) return '<1m';
   if (seconds < 300) return '1-5m';
@@ -160,7 +169,7 @@ function getAllowedBaseDirs() {
   const projectRoot = path.join(__dirname, '..');
   const dirs = [
     projectRoot,
-    path.join(os.homedir(), 'Library', 'Application Support', 'stenoai')
+    getAppDataDir()
   ];
   if (_cachedCustomStoragePath) {
     dirs.push(_cachedCustomStoragePath);
@@ -1214,7 +1223,7 @@ ipcMain.handle('setup-system-check', async () => {
   try {
     // Check Python installation
     const pythonResult = await new Promise((resolve) => {
-      exec('python3 --version', (error, stdout, stderr) => {
+      exec(`${getPythonCommand()} --version`, (error, stdout, stderr) => {
         if (error) {
           resolve(false);
         } else {
@@ -1235,7 +1244,7 @@ ipcMain.handle('setup-system-check', async () => {
     // Detect if running from app bundle (DMG install) or development
     if (currentPath.includes('StenoAI.app') || currentPath.includes('Applications')) {
       // DMG/Production: Use Application Support folder
-      baseDir = path.join(os.homedir(), 'Library', 'Application Support', 'stenoai');
+      baseDir = getAppDataDir();
     } else {
       // Development: Use project relative paths  
       baseDir = path.join(__dirname, '..');
@@ -1255,7 +1264,7 @@ ipcMain.handle('setup-system-check', async () => {
     const venvPath = path.join(projectRoot, 'venv');
     if (!fs.existsSync(venvPath)) {
       await new Promise((resolve, reject) => {
-        const process = spawn('python3', ['-m', 'venv', 'venv'], {
+        const process = spawn(getPythonCommand(), ['-m', 'venv', 'venv'], {
           cwd: projectRoot
         });
         
@@ -1434,10 +1443,10 @@ ipcMain.handle('setup-python', async () => {
     // Create virtual environment if it doesn't exist
     if (!fs.existsSync(venvPath)) {
       sendDebugLog('Python virtual environment not found, creating...');
-      sendDebugLog('$ python3 -m venv venv');
+      sendDebugLog(`$ ${getPythonCommand()} -m venv venv`);
       
       await new Promise((resolve, reject) => {
-        const process = spawn('python3', ['-m', 'venv', 'venv'], {
+        const process = spawn(getPythonCommand(), ['-m', 'venv', 'venv'], {
           cwd: projectRoot,
           stdio: 'pipe'
         });
@@ -1474,7 +1483,7 @@ ipcMain.handle('setup-python', async () => {
     sendDebugLog('$ pip install -r requirements.txt openai-whisper');
     
     return new Promise((resolve) => {
-      const pythonPath = path.join(venvPath, 'bin', 'python');
+      const pythonPath = process.platform === 'win32' ? path.join(venvPath, 'Scripts', 'python.exe') : path.join(venvPath, 'bin', 'python');
       const process = spawn(pythonPath, ['-m', 'pip', 'install', '-r', 'requirements.txt', 'openai-whisper'], {
         cwd: projectRoot,
         stdio: 'pipe'
@@ -1706,7 +1715,7 @@ ipcMain.handle('setup-whisper', async () => {
 
     // Legacy code below - kept for reference but never runs
     const projectRoot = path.join(__dirname, '..');
-    const pythonPath = path.join(projectRoot, 'venv', 'bin', 'python');
+    const pythonPath = process.platform === 'win32' ? path.join(projectRoot, 'venv', 'Scripts', 'python.exe') : path.join(projectRoot, 'venv', 'bin', 'python');
 
     sendDebugLog('Installing Whisper speech recognition...');
     sendDebugLog(`$ ${pythonPath} -m pip install openai-whisper`);
@@ -2221,7 +2230,7 @@ ipcMain.handle('set-language', async (event, languageCode) => {
 // AI Provider IPC handlers
 
 function getCloudKeyPath() {
-  return path.join(os.homedir(), 'Library', 'Application Support', 'stenoai', '.cloud-api-key');
+  return path.join(getAppDataDir(), '.cloud-api-key');
 }
 
 function saveCloudApiKey(key) {
@@ -2372,7 +2381,7 @@ ipcMain.handle('get-recordings-dir', async () => {
     if (jsonData.storage_path) {
       recordingsDir = path.join(jsonData.storage_path, 'recordings');
     } else if (app.isPackaged) {
-      recordingsDir = path.join(os.homedir(), 'Library', 'Application Support', 'stenoai', 'recordings');
+      recordingsDir = path.join(getAppDataDir(), 'recordings');
     } else {
       recordingsDir = path.join(__dirname, '..', 'recordings');
     }
@@ -2514,9 +2523,11 @@ function getOllamaEnv() {
     ollamaDir = path.join(__dirname, '..', 'bin');
   }
   const env = { ...process.env };
-  const existing = env.DYLD_LIBRARY_PATH || '';
-  env.DYLD_LIBRARY_PATH = existing ? `${ollamaDir}:${existing}` : ollamaDir;
-  env.MLX_METAL_PATH = path.join(ollamaDir, 'mlx.metallib');
+  if (process.platform === 'darwin') {
+    const existing = env.DYLD_LIBRARY_PATH || '';
+    env.DYLD_LIBRARY_PATH = existing ? `${ollamaDir}:${existing}` : ollamaDir;
+    env.MLX_METAL_PATH = path.join(ollamaDir, 'mlx.metallib');
+  }
   return env;
 }
 
@@ -2727,7 +2738,7 @@ ipcMain.handle('open-release-page', async (event, url) => {
 // ── Google Calendar: Token Storage ──────────────────────────────────────
 
 function getTokenFilePath() {
-  return path.join(os.homedir(), 'Library', 'Application Support', 'stenoai', '.google-tokens');
+  return path.join(getAppDataDir(), '.google-tokens');
 }
 
 function saveGoogleTokens(tokens) {
@@ -2772,7 +2783,7 @@ function deleteGoogleTokens() {
 // ── Outlook Calendar: Token Storage ─────────────────────────────────────
 
 function getOutlookTokenFilePath() {
-  return path.join(os.homedir(), 'Library', 'Application Support', 'stenoai', '.outlook-tokens');
+  return path.join(getAppDataDir(), '.outlook-tokens');
 }
 
 function saveOutlookTokens(tokens) {
