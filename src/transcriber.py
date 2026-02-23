@@ -1,11 +1,10 @@
 """
 Whisper transcription module.
 
-Supports two backends:
-1. whisper.cpp (via pywhispercpp) - Lightweight, fast, recommended
-2. openai-whisper (PyTorch) - Original, heavier, fallback
-
-whisper.cpp is preferred as it's 10x smaller and 2-4x faster.
+Supports three backends:
+1. faster-whisper (CTranslate2) - Fastest for local CPU/GPU usage
+2. whisper.cpp (via pywhispercpp) - Lightweight, fast fallback
+3. openai-whisper (PyTorch) - Original, heavier fallback
 """
 
 import logging
@@ -15,6 +14,15 @@ from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Try faster-whisper first (best performance for local installs)
+try:
+    from faster_whisper import WhisperModel as FasterWhisperModel
+    FASTER_WHISPER_AVAILABLE = True
+    logger.info("Using faster-whisper backend")
+except ImportError:
+    FasterWhisperModel = None
+    FASTER_WHISPER_AVAILABLE = False
 
 # Try whisper.cpp first (preferred - smaller, faster)
 try:
@@ -33,15 +41,17 @@ except ImportError:
     openai_whisper = None
     OPENAI_WHISPER_AVAILABLE = False
 
-WHISPER_AVAILABLE = WHISPER_CPP_AVAILABLE or OPENAI_WHISPER_AVAILABLE
+WHISPER_AVAILABLE = (
+    FASTER_WHISPER_AVAILABLE or WHISPER_CPP_AVAILABLE or OPENAI_WHISPER_AVAILABLE
+)
 
 
 class WhisperTranscriber:
     """
     Whisper-based audio transcription.
 
-    Automatically uses whisper.cpp if available (faster, smaller),
-    falls back to openai-whisper (PyTorch) if not.
+    Automatically uses faster-whisper if available,
+    then whisper.cpp, and finally openai-whisper.
     """
 
     def __init__(self, model_size: str = "small"):
@@ -53,8 +63,8 @@ class WhisperTranscriber:
         """
         if not WHISPER_AVAILABLE:
             raise ImportError(
-                "No Whisper backend available. Install pywhispercpp (recommended) "
-                "or openai-whisper: pip install pywhispercpp"
+                "No Whisper backend available. Install faster-whisper, "
+                "pywhispercpp, or openai-whisper."
             )
 
         self.model_size = model_size
@@ -135,7 +145,9 @@ class WhisperTranscriber:
     def _load_model(self) -> None:
         """Load the Whisper model using the best available backend."""
         try:
-            if WHISPER_CPP_AVAILABLE:
+            if FASTER_WHISPER_AVAILABLE:
+                self._load_faster_whisper()
+            elif WHISPER_CPP_AVAILABLE:
                 self._load_whisper_cpp()
             elif OPENAI_WHISPER_AVAILABLE:
                 self._load_openai_whisper()
@@ -196,7 +208,9 @@ class WhisperTranscriber:
                 return "Audio file too small or empty"
 
             # Use appropriate backend
-            if self.backend == "whisper.cpp":
+            if self.backend == "faster-whisper":
+                transcript = self._transcribe_faster_whisper(audio_filepath, language)
+            elif self.backend == "whisper.cpp":
                 transcript = self._transcribe_whisper_cpp(audio_filepath, language)
             else:
                 transcript = self._transcribe_openai_whisper(audio_filepath, language)
@@ -277,6 +291,21 @@ class WhisperTranscriber:
                 except Exception:
                     pass
 
+    def _transcribe_faster_whisper(self, audio_filepath: Path, language: str = "en") -> Optional[str]:
+        """Transcribe using faster-whisper backend."""
+        transcribe_kwargs = {
+            "beam_size": 1,
+            "vad_filter": True,
+        }
+        if language and language != "auto":
+            transcribe_kwargs["language"] = language
+
+        segments, _ = self.model.transcribe(str(audio_filepath), **transcribe_kwargs)
+        texts = [segment.text.strip() for segment in segments if segment.text.strip()]
+        if not texts:
+            return None
+        return " ".join(texts).strip()
+
     def _transcribe_openai_whisper(self, audio_filepath: Path, language: str = "en") -> Optional[str]:
         """Transcribe using openai-whisper backend."""
         transcribe_kwargs = {
@@ -314,7 +343,17 @@ class WhisperTranscriber:
         try:
             logger.info(f"Transcribing audio file with timestamps: {audio_filepath}")
 
-            if self.backend == "whisper.cpp":
+            if self.backend == "faster-whisper":
+                segments, _ = self.model.transcribe(str(audio_filepath), beam_size=1, vad_filter=True)
+                segment_list = list(segments)
+                result = {
+                    "text": " ".join(s.text.strip() for s in segment_list if s.text.strip()),
+                    "segments": [
+                        {"text": s.text.strip(), "start": s.start, "end": s.end}
+                        for s in segment_list if s.text.strip()
+                    ]
+                }
+            elif self.backend == "whisper.cpp":
                 segments = self.model.transcribe(str(audio_filepath))
                 result = {
                     "text": " ".join(s.text.strip() for s in segments),
@@ -360,6 +399,23 @@ class WhisperTranscriber:
         return {
             "backend": self.backend,
             "model_size": self.model_size,
+            "faster_whisper_available": FASTER_WHISPER_AVAILABLE,
             "whisper_cpp_available": WHISPER_CPP_AVAILABLE,
             "openai_whisper_available": OPENAI_WHISPER_AVAILABLE,
         }
+
+    def _load_faster_whisper(self) -> None:
+        """Load model using faster-whisper backend."""
+        logger.info(f"Loading faster-whisper model: {self.model_size}")
+
+        import multiprocessing
+
+        cpu_threads = max(1, multiprocessing.cpu_count() - 2)
+        self.model = FasterWhisperModel(
+            self.model_size,
+            device="cpu",
+            compute_type="int8",
+            cpu_threads=cpu_threads,
+        )
+        self.backend = "faster-whisper"
+        logger.info(f"faster-whisper model loaded successfully (threads: {cpu_threads})")

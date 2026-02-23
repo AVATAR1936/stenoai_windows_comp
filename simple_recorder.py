@@ -1230,14 +1230,22 @@ def setup_check():
     except ImportError:
         checks.append(("❌ sounddevice", "pip install sounddevice"))
     
-    # Check for whisper backend (prefer pywhispercpp, fallback to openai-whisper)
+    # Check for whisper backend (prefer faster-whisper, then pywhispercpp, then openai-whisper)
     whisper_found = False
     try:
-        import pywhispercpp
-        checks.append(("✅ whisper", "pywhispercpp (fast)"))
+        import faster_whisper
+        checks.append(("✅ whisper", "faster-whisper (recommended)"))
         whisper_found = True
     except ImportError:
         pass
+
+    if not whisper_found:
+        try:
+            import pywhispercpp
+            checks.append(("✅ whisper", "pywhispercpp (fast)"))
+            whisper_found = True
+        except ImportError:
+            pass
 
     if not whisper_found:
         try:
@@ -1248,7 +1256,7 @@ def setup_check():
             pass
 
     if not whisper_found:
-        checks.append(("❌ whisper", "pip install pywhispercpp"))
+        checks.append(("❌ whisper", "pip install faster-whisper"))
     
     try:
         import ollama
