@@ -11,7 +11,7 @@
   <a href="https://github.com/ruzin/stenoai/releases"><img src="https://img.shields.io/github/v/release/ruzin/stenoai?style=for-the-badge" alt="Release"></a>
   <a href="https://discord.gg/DZ6vcQnxxu"><img src="https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License"></a>
-  <img src="https://img.shields.io/badge/Platform-macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS">
+  <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="macOS and Windows">
 </p>
 
 <p align="center">AI-powered meeting intelligence that runs entirely on your device, your private data never leaves anywhere. Record, transcribe, summarize, and query your meetings using local AI models. Perfect for healthcare, legal and finance professionals with confidential data needs.</p>
@@ -49,7 +49,7 @@
 - **Multi-language support** - Transcribe and summarize in 10 languages
 - **Remote Ollama server** - Run AI models on another machine on your network
 - **System audio capture** - Record mic + system audio simultaneously for virtual meetings with headphones
-- **macOS desktop app** with intuitive interface
+- **Desktop app for macOS and Windows** with intuitive interface
 
 Have questions or suggestions? [Join our Discord](https://discord.gg/DZ6vcQnxxu) to chat with the community.
 
@@ -94,10 +94,13 @@ Have questions or suggestions? [Join our Discord](https://discord.gg/DZ6vcQnxxu)
 
 ## Installation
 
-Download the latest release for your Mac:
+Download the latest release for your platform:
 
-- [Apple Silicon (M1-M5)](https://github.com/ruzin/stenoai/releases/latest/download/stenoAI-macos-arm64.dmg)
-- [Intel Macs](https://github.com/ruzin/stenoai/releases/latest/download/stenoAI-macos-x64.dmg) Performance on Intel Macs is limited due to lack of dedicated AI inference capabilities on these older chips.
+- **macOS**
+  - [Apple Silicon (M1-M5)](https://github.com/ruzin/stenoai/releases/latest/download/stenoAI-macos-arm64.dmg)
+  - [Intel Macs](https://github.com/ruzin/stenoai/releases/latest/download/stenoAI-macos-x64.dmg) Performance on Intel Macs is limited due to lack of dedicated AI inference capabilities on these older chips.
+- **Windows**
+  - [Windows x64 installer](https://github.com/ruzin/stenoai/releases/latest)
 
 ### Installing on macOS
 
@@ -113,6 +116,12 @@ Download the latest release for your Mac:
 5. **The app will work normally on subsequent launches**
 
 You can run it locally as well (see below) if you don't want to install a DMG.
+
+### Installing on Windows
+
+1. Download the latest Windows installer from the releases page
+2. Run the installer and follow the setup steps
+3. Launch StenoAI from the Start Menu
 
 ## Local Development/Use Locally
 

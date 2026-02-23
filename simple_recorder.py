@@ -45,6 +45,15 @@ except ImportError:
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def get_platform_app_data_dir() -> Path:
+    """Return the default StenoAI data directory for the current platform."""
+    if sys.platform == 'win32':
+        appdata = os.environ.get('APPDATA')
+        if appdata:
+            return Path(appdata) / 'stenoai'
+        return Path.home() / 'AppData' / 'Roaming' / 'stenoai'
+    return Path.home() / "Library" / "Application Support" / "stenoai"
+
 class SimpleRecorder:
     """Simple audio recorder and transcriber."""
     
@@ -885,7 +894,7 @@ def list_meetings():
     custom = get_config().get_storage_path()
     if custom:
         if "StenoAI.app" in str(Path(__file__)) or "Applications" in str(Path(__file__)):
-            default_output = Path.home() / "Library" / "Application Support" / "stenoai" / "output"
+            default_output = get_platform_app_data_dir() / "output"
         else:
             default_output = Path(__file__).parent / "output"
         if default_output.exists():
@@ -1068,7 +1077,7 @@ def list_failed():
     custom = get_config().get_storage_path()
     if custom:
         if "StenoAI.app" in str(Path(__file__)) or "Applications" in str(Path(__file__)):
-            default_output = Path.home() / "Library" / "Application Support" / "stenoai" / "output"
+            default_output = get_platform_app_data_dir() / "output"
         else:
             default_output = Path(__file__).parent / "output"
         if default_output.exists():
@@ -1191,6 +1200,7 @@ def setup_check():
             (None, '/opt/homebrew/bin/ffmpeg'),         # Homebrew Apple Silicon
             (None, '/usr/local/bin/ffmpeg'),            # Homebrew Intel
             (None, '/usr/bin/ffmpeg'),                  # System
+            (None, r'C:\\ffmpeg\\bin\\ffmpeg.exe'),      # Common Windows location
         ])
 
         for label, path in possible_ffmpeg_paths:
@@ -1247,7 +1257,10 @@ def setup_check():
         checks.append(("❌ ollama-python", "pip install ollama"))
 
     # Check if whisper model is downloaded (pywhispercpp stores in ~/Library/Application Support/pywhispercpp/models/)
-    whisper_model_path = Path.home() / "Library" / "Application Support" / "pywhispercpp" / "models"
+    if sys.platform == 'win32':
+        whisper_model_path = Path.home() / "AppData" / "Roaming" / "pywhispercpp" / "models"
+    else:
+        whisper_model_path = Path.home() / "Library" / "Application Support" / "pywhispercpp" / "models"
     whisper_models = list(whisper_model_path.glob("ggml-*.bin")) if whisper_model_path.exists() else []
     if whisper_models:
         model_name = whisper_models[0].stem.replace("ggml-", "")

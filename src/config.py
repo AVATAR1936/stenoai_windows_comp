@@ -6,11 +6,27 @@ Handles storing and loading user preferences like model selection.
 
 import json
 import logging
+import os
+import sys
 import uuid
 from pathlib import Path
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+
+def get_default_data_base_dir() -> Path:
+    """Return the default app data directory for the current platform."""
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            return Path(appdata) / "stenoai"
+        return Path.home() / "AppData" / "Roaming" / "stenoai"
+
+    if "StenoAI.app" in str(Path(__file__)) or "Applications" in str(Path(__file__)):
+        return Path.home() / "Library" / "Application Support" / "stenoai"
+
+    return Path(__file__).parent.parent
 
 
 class Config:
@@ -76,13 +92,7 @@ class Config:
             config_path: Path to config file. If None, uses default location.
         """
         if config_path is None:
-            # Use same directory logic as recorder state
-            if "StenoAI.app" in str(Path(__file__)) or "Applications" in str(Path(__file__)):
-                # Production: ~/Library/Application Support/stenoai
-                base_dir = Path.home() / "Library" / "Application Support" / "stenoai"
-            else:
-                # Development: project root
-                base_dir = Path(__file__).parent.parent
+            base_dir = get_default_data_base_dir()
 
             base_dir.mkdir(parents=True, exist_ok=True)
             self.config_path = base_dir / "config.json"
@@ -316,7 +326,6 @@ class Config:
 
     def get_cloud_api_key(self) -> str:
         """Get the cloud API key from env var (set by Electron via safeStorage)."""
-        import os
         return os.environ.get("STENOAI_CLOUD_API_KEY", "")
 
     def get_cloud_provider(self) -> str:
@@ -378,17 +387,16 @@ def get_data_dirs() -> Dict[str, Path]:
 
     Returns dict with keys: recordings, transcripts, output.
     Uses custom storage_path from config if set, otherwise falls back to
-    production (~/Library/Application Support/stenoai/) or development paths.
+    platform defaults (AppData on Windows, Application Support on macOS)
+    or development paths.
     """
     config = get_config()
     custom = config.get_storage_path()
 
     if custom:
         base = Path(custom)
-    elif "StenoAI.app" in str(Path(__file__)) or "Applications" in str(Path(__file__)):
-        base = Path.home() / "Library" / "Application Support" / "stenoai"
     else:
-        base = Path(__file__).parent.parent  # project root in dev
+        base = get_default_data_base_dir()
 
     dirs = {
         "recordings": base / "recordings",
